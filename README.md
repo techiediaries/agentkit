@@ -36,28 +36,25 @@ Requires `claude` CLI installed: `npm install -g @anthropic-ai/claude-code`
 agentkit list
 
 # Run a single agent
-agentkit run prd-designer --input="A pharmacy in Casablanca"
+agentkit run summarizer --input="Your text here"
 
 # Pipe input from a file
-agentkit run prd-designer --input-file=brief.txt
+agentkit run summarizer --input-file=notes.txt
 
 # Pipe from stdin
-echo "A bakery in Rabat" | agentkit run prd-designer
+cat meeting-notes.txt | agentkit run summarizer
 
 # Save output to file
-agentkit run prd-designer --input="A pharmacy in Casablanca" --output-file=prd.json
+agentkit run summarizer --input-file=notes.txt --output-file=summary.md
 
 # Chain agents manually
-agentkit chain prd-designer,prd-reviewer --input="A pharmacy in Casablanca"
+agentkit chain agent-a,agent-b --input="Your input"
 
 # Chain agents automatically (follows chain_next links in frontmatter)
-agentkit chain prd-designer --auto --input="A pharmacy in Casablanca"
+agentkit chain agent-a --auto --input="Your input"
 
-# Full pipeline: design → review → save
-agentkit chain prd-designer,prd-reviewer \
-  --input="A pharmacy in Casablanca" \
-  --output-file=review.json \
-  --verbose
+# Verbose mode (debug info on stderr)
+agentkit run summarizer --input="..." --verbose
 ```
 
 ---
@@ -69,15 +66,15 @@ agentkit chain prd-designer,prd-reviewer \
 name: my-agent
 domain: my-domain
 description: One-line description shown in agentkit list
-input: plain-English brief
-output: JSON or structured text
+input: plain-English description of expected input
+output: plain-English description of expected output
 tags: [tag1, tag2]
 chain_next: next-agent-slug   # optional — enables --auto chaining
 ---
 
 Your system prompt goes here.
 
-Everything in this file below the --- frontmatter is sent to claude as the system prompt.
+Everything below the frontmatter is sent to claude as the system prompt.
 The user's input is appended after a --- separator.
 ```
 
@@ -85,46 +82,26 @@ The user's input is appended after a --- separator.
 
 ## Available agents
 
-### `darjs/prd-designer`
+### `generic/summarizer`
 
-Designs complete PRD documents for Moroccan SMB apps buildable with DarJS.
-
-- **Input:** plain-English brief (business type, city, sector)
-- **Output:** structured JSON PRD — models, scenarios, roles, theme, regulatory
-- **Chains to:** `prd-reviewer`
+Summarizes any text into a structured brief with key points, decisions, and open questions.
 
 ```bash
-agentkit run prd-designer --input="A restaurant in Marrakech"
-```
-
-### `darjs/prd-reviewer`
-
-Reviews a DarJS PRD for gaps that would block a Moroccan business owner from achieving their daily goals.
-
-- **Input:** PRD JSON from `prd-designer`
-- **Output:** structured review — gaps, missing scenarios, ambiguities, pass/fail verdict
-
-```bash
-agentkit run prd-designer --input="A restaurant in Marrakech" | agentkit run prd-reviewer
-```
-
-Or run both in one command:
-
-```bash
-agentkit chain prd-designer --auto --input="A restaurant in Marrakech" --output-file=review.json
+cat meeting-notes.txt | agentkit run summarizer
+agentkit run summarizer --input-file=document.txt --output-file=summary.md
 ```
 
 ---
 
 ## Writing your own agents
 
-1. Create a file in `agents/<domain>/<name>.md`
-2. Add YAML frontmatter (name, domain, description, input, output, tags)
+1. Create `agents/<domain>/<name>.md`
+2. Add YAML frontmatter (`name`, `domain`, `description`, `input`, `output`, `tags`)
 3. Write your system prompt below the frontmatter
 4. Run `agentkit list` to verify it appears
 5. Run `agentkit run <name> --input="..."` to test it
 
-To chain agents, add `chain_next: <next-agent-name>` to the frontmatter of the first agent.
+To chain agents, add `chain_next: <next-agent-name>` to the first agent's frontmatter.
 
 ---
 
@@ -139,16 +116,15 @@ agentkit/
     runner.js         ← spawns claude --print with agent prompt
     chain.js          ← sequences agents, resolves chain_next links
   agents/
-    darjs/
-      prd-designer.md
-      prd-reviewer.md
-    generic/          ← general-purpose agents (add your own)
+    generic/
+      summarizer.md   ← example agent
+    <your-domain>/    ← add your own agents here
 ```
 
 ---
 
 ## Why no API?
 
-Claude Code's `claude --print` mode runs a full claude session from the CLI, using your existing subscription. No API key, no per-token billing, no SDK to configure.
+Claude Code's `claude --print` mode runs a full claude session from the CLI using your existing subscription. No API key, no per-token billing, no SDK to configure.
 
-The tradeoff: each agent call starts a new claude session (no persistent memory between calls). For stateless prompt→response agents, this is fine — and it means any team member with Claude Code installed can run the pipeline.
+The tradeoff: each agent call starts a new claude session (stateless). For prompt→response agents, this is fine — and it means any team member with Claude Code installed can run the pipeline.
