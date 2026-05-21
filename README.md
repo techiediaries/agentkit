@@ -93,13 +93,31 @@ agentkit run summarizer --input-file=document.txt --output-file=summary.md
 
 ---
 
+## Using agents from an external directory
+
+Agents don't have to live inside the agentkit repo. Point at any directory:
+
+```bash
+# Use agents from another project
+agentkit list --agents-dir=~/myproject/agents
+agentkit run my-agent --agents-dir=~/myproject/agents --input="..."
+agentkit chain my-agent --auto --agents-dir=~/myproject/agents --input="..."
+
+# Or set it once via env var
+export AGENTKIT_AGENTS_DIR=~/myproject/agents
+agentkit list
+agentkit run my-agent --input="..."
+```
+
+This lets domain-specific agent libraries live in their own repos (versioned, reviewed, tested) while agentkit stays generic.
+
 ## Writing your own agents
 
-1. Create `agents/<domain>/<name>.md`
+1. Create `agents/<domain>/<name>.md` — anywhere, not just inside agentkit
 2. Add YAML frontmatter (`name`, `domain`, `description`, `input`, `output`, `tags`)
 3. Write your system prompt below the frontmatter
-4. Run `agentkit list` to verify it appears
-5. Run `agentkit run <name> --input="..."` to test it
+4. Run `agentkit list --agents-dir=<your-dir>` to verify it appears
+5. Run `agentkit run <name> --agents-dir=<your-dir> --input="..."` to test it
 
 To chain agents, add `chain_next: <next-agent-name>` to the first agent's frontmatter.
 

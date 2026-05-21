@@ -30,7 +30,7 @@ import { loadAgent } from './load.js';
  * @module      src/runner
  */
 export async function runAgent(agentName, input, opts = {}) {
-  const agent = loadAgent(agentName);
+  const agent = loadAgent(agentName, opts.agentsDir);
   const claudePath = opts.claudePath || 'claude';
   const verbose = opts.verbose || false;
 

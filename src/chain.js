@@ -37,7 +37,7 @@ export async function chainAgents(agentNames, initialInput, opts = {}) {
       process.stderr.write(`\n[agentkit] chain step: ${agentName}\n`);
     }
 
-    const output = await runAgent(agentName, currentInput, opts);
+    const output = await runAgent(agentName, currentInput, { ...opts, agentsDir: opts.agentsDir });
 
     const step = { agent: agentName, input: currentInput, output };
     steps.push(step);

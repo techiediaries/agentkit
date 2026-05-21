@@ -17,6 +17,13 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const AGENTS_DIR = path.join(__dirname, '..', 'agents');
 
+// Resolve the agents directory: CLI --agents-dir flag > AGENTKIT_AGENTS_DIR env > bundled agents/
+export function resolveAgentsDir(flagValue) {
+  if (flagValue) return path.resolve(flagValue);
+  if (process.env.AGENTKIT_AGENTS_DIR) return path.resolve(process.env.AGENTKIT_AGENTS_DIR);
+  return AGENTS_DIR;
+}
+
 /**
  * @contract
  * @role        transformer
@@ -62,19 +69,22 @@ function parseFrontmatter(content) {
  * @throws      Error if agent not found
  * @module      src/load
  */
-export function loadAgent(name) {
+export function loadAgent(name, agentsDir) {
+  const dir = agentsDir || AGENTS_DIR;
   const candidates = [];
 
   if (name.includes('/')) {
-    candidates.push(path.join(AGENTS_DIR, `${name}.md`));
+    candidates.push(path.join(dir, `${name}.md`));
   } else {
-    const domains = fs.readdirSync(AGENTS_DIR, { withFileTypes: true })
-      .filter(d => d.isDirectory())
-      .map(d => d.name);
-    for (const domain of domains) {
-      candidates.push(path.join(AGENTS_DIR, domain, `${name}.md`));
+    if (fs.existsSync(dir)) {
+      const domains = fs.readdirSync(dir, { withFileTypes: true })
+        .filter(d => d.isDirectory())
+        .map(d => d.name);
+      for (const domain of domains) {
+        candidates.push(path.join(dir, domain, `${name}.md`));
+      }
     }
-    candidates.push(path.join(AGENTS_DIR, `${name}.md`));
+    candidates.push(path.join(dir, `${name}.md`));
   }
 
   for (const candidate of candidates) {
@@ -112,7 +122,8 @@ export function loadAgent(name) {
  * @complexity  simple
  * @module      src/load
  */
-export function listAgents() {
+export function listAgents(agentsDir) {
+  const dir = agentsDir || AGENTS_DIR;
   const agents = [];
 
   function walk(dir, domain) {
@@ -138,6 +149,6 @@ export function listAgents() {
     }
   }
 
-  walk(AGENTS_DIR, 'generic');
+  walk(dir, 'generic');
   return agents;
 }

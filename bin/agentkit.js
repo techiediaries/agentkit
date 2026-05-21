@@ -11,7 +11,7 @@
 
 import fs from 'fs';
 import readline from 'readline';
-import { listAgents, loadAgent } from '../src/load.js';
+import { listAgents, loadAgent, resolveAgentsDir } from '../src/load.js';
 import { runAgent } from '../src/runner.js';
 import { chainAgents, resolveChain } from '../src/chain.js';
 
@@ -87,10 +87,10 @@ if (!command || command === 'help' || command === '--help' || command === '-h') 
 agentkit — run Claude agents from the CLI without the Anthropic API
 
 USAGE
-  agentkit list [--domain=<domain>]
-  agentkit run <agent> [--input=<text>] [--input-file=<path>] [--output-file=<path>] [--verbose]
-  agentkit chain <agent> [--auto] [--input=<text>] [--input-file=<path>] [--output-file=<path>] [--verbose]
-  agentkit chain <a,b,c> [--input=<text>] [--input-file=<path>] [--output-file=<path>] [--verbose]
+  agentkit list [--domain=<domain>] [--agents-dir=<path>]
+  agentkit run <agent> [--input=<text>] [--input-file=<path>] [--output-file=<path>] [--agents-dir=<path>] [--verbose]
+  agentkit chain <agent> [--auto] [--input=<text>] [--input-file=<path>] [--output-file=<path>] [--agents-dir=<path>] [--verbose]
+  agentkit chain <a,b,c> [--input=<text>] [--agents-dir=<path>] [--verbose]
 
 COMMANDS
   list      Show all available agents
@@ -101,23 +101,27 @@ FLAGS
   --input=<text>         Input text for the agent
   --input-file=<path>    Read input from a file
   --output-file=<path>   Write output to a file instead of stdout
+  --agents-dir=<path>    Use agents from this directory instead of the bundled agents/
   --verbose              Show debug info on stderr
   --auto                 For chain: auto-follow chain_next links from starting agent
   --domain=<domain>      For list: filter by domain
 
+  Env var: AGENTKIT_AGENTS_DIR — same as --agents-dir, lower priority
+
 EXAMPLES
   agentkit list
-  agentkit run prd-designer --input="A pharmacy in Casablanca"
-  agentkit chain prd-designer --auto --input="A pharmacy in Casablanca"
-  agentkit chain prd-designer,prd-reviewer --input="A pharmacy in Casablanca"
-  echo "A bakery in Rabat" | agentkit run prd-designer
+  agentkit run summarizer --input-file=notes.txt
+  agentkit run my-agent --agents-dir=./my-agents --input="..."
+  agentkit chain agent-a --auto --agents-dir=./my-agents --input="..."
+  cat notes.txt | agentkit run summarizer
 `);
   process.exit(0);
 }
 
 if (command === 'list') {
   const flags = parseFlags(args.slice(1));
-  let agents = listAgents();
+  const agentsDir = resolveAgentsDir(flags['agents-dir']);
+  let agents = listAgents(agentsDir);
   if (flags.domain) agents = agents.filter(a => a.domain === flags.domain);
   if (agents.length === 0) {
     console.log('No agents found.');
@@ -136,6 +140,7 @@ if (command === 'run') {
     process.exit(1);
   }
   const flags = parseFlags(args.slice(2));
+  const agentsDir = resolveAgentsDir(flags['agents-dir']);
 
   (async () => {
     try {
@@ -144,7 +149,7 @@ if (command === 'run') {
         process.stderr.write('No input provided.\n');
         process.exit(1);
       }
-      const output = await runAgent(agentName, input, { verbose: !!flags.verbose });
+      const output = await runAgent(agentName, input, { verbose: !!flags.verbose, agentsDir });
       writeOutput(output, flags);
     } catch (e) {
       process.stderr.write(`Error: ${e.message}\n`);
@@ -160,6 +165,7 @@ else if (command === 'chain') {
     process.exit(1);
   }
   const flags = parseFlags(args.slice(2));
+  const agentsDir = resolveAgentsDir(flags['agents-dir']);
 
   (async () => {
     try {
@@ -167,7 +173,7 @@ else if (command === 'chain') {
       if (chainArg.includes(',')) {
         agentNames = chainArg.split(',').map(s => s.trim());
       } else if (flags.auto) {
-        agentNames = resolveChain(chainArg, loadAgent);
+        agentNames = resolveChain(chainArg, name => loadAgent(name, agentsDir));
         if (flags.verbose) {
           process.stderr.write(`[agentkit] resolved chain: ${agentNames.join(' → ')}\n`);
         }
@@ -183,6 +189,7 @@ else if (command === 'chain') {
 
       const result = await chainAgents(agentNames, input, {
         verbose: !!flags.verbose,
+        agentsDir,
         onStep: (step, i) => {
           if (flags.verbose) {
             process.stderr.write(`[agentkit] step ${i + 1}/${agentNames.length} (${step.agent}) complete — ${step.output.length} chars\n`);
