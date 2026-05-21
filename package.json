@@ -1,0 +1,17 @@
+{
+  "name": "agentkit",
+  "version": "0.1.0",
+  "description": "Lightweight CLI framework for running Claude agent prompts without the Anthropic API",
+  "type": "module",
+  "bin": {
+    "agentkit": "./bin/agentkit.js"
+  },
+  "scripts": {
+    "test": "node --test tests/"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
