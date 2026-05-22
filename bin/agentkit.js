@@ -98,15 +98,21 @@ COMMANDS
   chain     Run multiple agents in sequence (output of each → input of next)
 
 FLAGS
-  --input=<text>         Input text for the agent
-  --input-file=<path>    Read input from a file
-  --output-file=<path>   Write output to a file instead of stdout
-  --agents-dir=<path>    Use agents from this directory instead of the bundled agents/
-  --verbose              Show debug info on stderr
-  --auto                 For chain: auto-follow chain_next links from starting agent
-  --domain=<domain>      For list: filter by domain
+  --input=<text>           Input text for the agent
+  --input-file=<path>      Read input from a file
+  --output-file=<path>     Write output to a file instead of stdout
+  --agents-dir=<path>      Use agents from this directory instead of the bundled agents/
+  --claude-path=<path>     Explicit path to the claude binary
+  --verbose                Show debug info on stderr
+  --auto                   For chain: auto-follow chain_next links from starting agent
+  --domain=<domain>        For list: filter by domain
 
-  Env var: AGENTKIT_AGENTS_DIR — same as --agents-dir, lower priority
+  Env vars:
+    AGENTKIT_AGENTS_DIR    same as --agents-dir
+    AGENTKIT_CLAUDE_PATH   same as --claude-path
+
+  If claude is not on PATH, agentkit auto-detects it from the VS Code extension directory.
+  To make it permanent:  ln -s ~/.vscode/extensions/anthropic.claude-code-*/resources/native-binary/claude /usr/local/bin/claude
 
 EXAMPLES
   agentkit list
@@ -149,7 +155,7 @@ if (command === 'run') {
         process.stderr.write('No input provided.\n');
         process.exit(1);
       }
-      const output = await runAgent(agentName, input, { verbose: !!flags.verbose, agentsDir });
+      const output = await runAgent(agentName, input, { verbose: !!flags.verbose, agentsDir, claudePath: flags['claude-path'] });
       writeOutput(output, flags);
     } catch (e) {
       process.stderr.write(`Error: ${e.message}\n`);
@@ -190,6 +196,7 @@ else if (command === 'chain') {
       const result = await chainAgents(agentNames, input, {
         verbose: !!flags.verbose,
         agentsDir,
+        claudePath: flags['claude-path'],
         onStep: (step, i) => {
           if (flags.verbose) {
             process.stderr.write(`[agentkit] step ${i + 1}/${agentNames.length} (${step.agent}) complete — ${step.output.length} chars\n`);

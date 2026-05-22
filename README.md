@@ -27,7 +27,25 @@ cd agentkit
 npm link   # makes `agentkit` available globally
 ```
 
-Requires `claude` CLI installed: `npm install -g @anthropic-ai/claude-code`
+Requires Claude Code installed: [claude.ai/code](https://claude.ai/code)
+
+### claude binary setup
+
+The `claude` binary ships inside the VS Code extension and is not on `$PATH` by default. agentkit auto-detects it from `~/.vscode/extensions/anthropic.claude-code-*/resources/native-binary/claude`, so it works out of the box.
+
+To make it available system-wide (optional but convenient):
+
+```bash
+ln -s ~/.vscode/extensions/anthropic.claude-code-*/resources/native-binary/claude /usr/local/bin/claude
+```
+
+Or point agentkit at it explicitly:
+
+```bash
+agentkit run summarizer --claude-path=~/.vscode/extensions/anthropic.claude-code-2.1.145-linux-x64/resources/native-binary/claude --input="..."
+# or once via env var:
+export AGENTKIT_CLAUDE_PATH=~/.vscode/extensions/anthropic.claude-code-*/resources/native-binary/claude
+```
 
 ---
 

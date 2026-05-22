@@ -10,8 +10,67 @@
  * @install     import { runAgent } from './src/runner.js'
  */
 
-import { spawn } from 'child_process';
+import { spawn, execFileSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 import { loadAgent } from './load.js';
+
+/**
+ * @contract
+ * @role        query
+ * @domain      agentkit
+ * @does        Resolves the claude binary path: checks PATH, then falls back to VS Code extension directories.
+ * @tags        claude, binary, path, resolve, vscode, extension, detect
+ * @returns     {string} absolute path to the claude binary
+ * @example     const claudePath = findClaudeBinary()
+ * @reuse-when  You need to locate the claude CLI before spawning it
+ * @complexity  simple
+ * @throws      Error if claude cannot be found anywhere
+ * @module      src/runner
+ */
+export function findClaudeBinary() {
+  // 1. Already on PATH
+  try {
+    execFileSync('which', ['claude'], { stdio: 'pipe' });
+    return 'claude';
+  } catch {}
+
+  // 2. VS Code extension (any version, any platform)
+  const extDir = path.join(os.homedir(), '.vscode', 'extensions');
+  if (fs.existsSync(extDir)) {
+    const match = fs.readdirSync(extDir)
+      .filter(d => d.startsWith('anthropic.claude-code-'))
+      .sort()
+      .reverse()[0]; // latest version first
+    if (match) {
+      const bin = path.join(extDir, match, 'resources', 'native-binary', 'claude');
+      if (fs.existsSync(bin)) return bin;
+    }
+  }
+
+  // 3. VS Code Insiders
+  const insidersExtDir = path.join(os.homedir(), '.vscode-insiders', 'extensions');
+  if (fs.existsSync(insidersExtDir)) {
+    const match = fs.readdirSync(insidersExtDir)
+      .filter(d => d.startsWith('anthropic.claude-code-'))
+      .sort()
+      .reverse()[0];
+    if (match) {
+      const bin = path.join(insidersExtDir, match, 'resources', 'native-binary', 'claude');
+      if (fs.existsSync(bin)) return bin;
+    }
+  }
+
+  throw new Error(
+    'claude binary not found.\n\n' +
+    'Fix options:\n' +
+    '  1. Symlink it:  ln -s ~/.vscode/extensions/anthropic.claude-code-*/resources/native-binary/claude /usr/local/bin/claude\n' +
+    '  2. Pass the path explicitly:  agentkit run <agent> --claude-path=/path/to/claude\n' +
+    '  3. Set AGENTKIT_CLAUDE_PATH env var\n\n' +
+    'Claude Code must be installed: https://claude.ai/code'
+  );
+}
 
 /**
  * @contract
@@ -31,7 +90,9 @@ import { loadAgent } from './load.js';
  */
 export async function runAgent(agentName, input, opts = {}) {
   const agent = loadAgent(agentName, opts.agentsDir);
-  const claudePath = opts.claudePath || 'claude';
+  const claudePath = opts.claudePath
+    || process.env.AGENTKIT_CLAUDE_PATH
+    || findClaudeBinary();
   const verbose = opts.verbose || false;
 
   if (verbose) {
