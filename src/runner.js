@@ -2,7 +2,7 @@
  * @module
  * @name        runner
  * @domain      agentkit
- * @does        Runs a single agent by piping its prompt + user input to the claude CLI and returning stdout.
+ * @does        Runs a single agent via claude --print, passing the system prompt via --system-prompt and user input via stdin.
  * @tags        runner, claude, spawn, prompt, agent, cli, subprocess
  * @exports     runAgent
  * @reuse-when  You need to invoke a single agent with input and capture its output
@@ -34,8 +34,6 @@ export async function runAgent(agentName, input, opts = {}) {
   const claudePath = opts.claudePath || 'claude';
   const verbose = opts.verbose || false;
 
-  const fullPrompt = `${agent.prompt}\n\n---\n\n${input}`;
-
   if (verbose) {
     process.stderr.write(`[agentkit] running agent: ${agent.name} (${agent.domain})\n`);
     process.stderr.write(`[agentkit] input length: ${input.length} chars\n`);
@@ -45,11 +43,16 @@ export async function runAgent(agentName, input, opts = {}) {
     const chunks = [];
     const errChunks = [];
 
-    const proc = spawn(claudePath, ['--print', '--output-format', 'text'], {
+    // --system-prompt carries the agent definition; user input goes via stdin
+    const proc = spawn(claudePath, [
+      '--print',
+      '--output-format', 'text',
+      '--system-prompt', agent.prompt,
+    ], {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
-    proc.stdin.write(fullPrompt);
+    proc.stdin.write(input);
     proc.stdin.end();
 
     proc.stdout.on('data', chunk => chunks.push(chunk));
