@@ -4,6 +4,8 @@ Lightweight CLI framework for running Claude agent prompts — no Anthropic API 
 
 Agents are markdown files with YAML frontmatter. You run them with one command.
 
+> **How this was built:** [We Built a Lightweight Agent Framework That Runs Claude Without an API Key](https://10xdev.blog/building-agentkit-claude-agents-without-api/)
+
 ---
 
 ## How it works
